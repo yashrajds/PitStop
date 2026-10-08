@@ -68,6 +68,9 @@ file to use PostgreSQL instead of the default local SQLite `pitstop.db`.
 3. Select a device (e.g. Medium Phone) and press **Run ▶**
 4. For live data, bridge the API: `adb reverse tcp:8000 tcp:8000`
 
+The Nearby screen shows a live **OpenStreetMap** (Leaflet + free CARTO dark tiles —
+no API key or billing needed) with tappable station pins and geolocation.
+
 > Android Studio note: if Gradle sync complains about the Java version, go to
 > **Settings → Build Tools → Gradle → Gradle JDK** and pick **17 or 21**
 > (the bundled JBR may be too new for Gradle 8.14).

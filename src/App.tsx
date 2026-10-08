@@ -674,6 +674,170 @@ function Home({
   )
 }
 
+// ─── OpenStreetMap (Leaflet, no API key needed) ───────────────────────────────
+import L from "leaflet"
+
+/** Accent colours that match the app palette */
+const accentHex: Record<"amber" | "blue" | "green", string> = {
+  amber: "#f0a070",
+  blue: "#70a8f0",
+  green: "#70c87a",
+}
+
+/** Free CARTO dark tiles (OpenStreetMap data) */
+const TILE_URL = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+const TILE_ATTR =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+
+function pinIcon(fill: string, selected: boolean): L.DivIcon {
+  const size = selected ? 46 : 36
+  return L.divIcon({
+    className: "pit-pin-wrap",
+    html: `<span class="pit-pin${selected ? " selected" : ""}" style="--pin:${fill}"></span>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  })
+}
+
+function OsmMapPanel({
+  stations: stationList,
+  onSelectStation,
+  selectedId,
+  onLocate,
+}: {
+  stations: Station[]
+  onSelectStation: (s: Station) => void
+  selectedId?: number
+  onLocate: () => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<L.Map | null>(null)
+  const markersRef = useRef<Map<number, L.Marker>>(new Map())
+  const userMarkerRef = useRef<L.CircleMarker | null>(null)
+  const [mapError, setMapError] = useState<string | null>(null)
+  const [locating, setLocating] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
+
+  // Centre on Bengaluru (Indiranagar area) as default
+  const BENGALURU: L.LatLngExpression = [12.9716, 77.6412]
+
+  /** Initialise the map (only once) */
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return
+    try {
+      const map = L.map(containerRef.current, { zoomControl: false })
+      map.setView(BENGALURU, 12)
+      L.tileLayer(TILE_URL, { maxZoom: 20, attribution: TILE_ATTR }).addTo(map)
+      L.control.zoom({ position: "bottomright" }).addTo(map)
+      mapRef.current = map
+      setMapReady(true)
+    } catch {
+      setMapError("Map tiles could not be loaded — check your connection")
+    }
+    return () => {
+      markersRef.current.forEach((m) => m.remove())
+      markersRef.current.clear()
+      userMarkerRef.current?.remove()
+      userMarkerRef.current = null
+      mapRef.current?.remove()
+      mapRef.current = null
+    }
+  }, [])
+
+  /** Keep markers in sync with the station list */
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !mapReady) return
+
+    const existing = new Set(markersRef.current.keys())
+
+    stationList.forEach((s) => {
+      existing.delete(s.id)
+      const isSelected = s.id === selectedId
+      const icon = pinIcon(accentHex[s.accent], isSelected)
+
+      if (markersRef.current.has(s.id)) {
+        const m = markersRef.current.get(s.id)!
+        m.setIcon(icon)
+        m.setZIndexOffset(isSelected ? 1000 : 0)
+      } else {
+        const m = L.marker([s.lat, s.lng], {
+          icon,
+          title: s.name,
+          zIndexOffset: isSelected ? 1000 : 0,
+        }).addTo(map)
+        m.on("click", () => onSelectStation(s))
+        markersRef.current.set(s.id, m)
+      }
+    })
+
+    // Remove stale markers
+    existing.forEach((id) => {
+      markersRef.current.get(id)?.remove()
+      markersRef.current.delete(id)
+    })
+  }, [stationList, selectedId, mapReady])
+
+  /** Pan to selected station */
+  useEffect(() => {
+    if (!mapRef.current || !selectedId) return
+    const s = stationList.find((x) => x.id === selectedId)
+    if (s) mapRef.current.panTo([s.lat, s.lng])
+  }, [selectedId])
+
+  /** Geolocate the user */
+  const handleLocate = () => {
+    if (!("geolocation" in navigator)) return
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const latlng: L.LatLngExpression = [pos.coords.latitude, pos.coords.longitude]
+        mapRef.current?.setView(latlng, 14)
+        if (userMarkerRef.current) {
+          userMarkerRef.current.setLatLng(latlng)
+        } else if (mapRef.current) {
+          userMarkerRef.current = L.circleMarker(latlng, {
+            radius: 9,
+            color: "#fff",
+            weight: 2,
+            fillColor: "#60a5fa",
+            fillOpacity: 1,
+          }).addTo(mapRef.current)
+        }
+        setLocating(false)
+        onLocate()
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
+
+  if (mapError) {
+    return (
+      <div className="map-panel map-error">
+        <Icon name="map" size={32} />
+        <p>{mapError}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="map-panel omap-panel">
+      <div ref={containerRef} className="omap-canvas" />
+      <button
+        className={`locate-button ${locating ? "locating" : ""}`}
+        onClick={handleLocate}
+        aria-label="Centre map on my location"
+        aria-busy={locating}
+      >
+        <Icon name="locate" />
+      </button>
+    </div>
+  )
+}
+
+// ─── Nearby screen ──────────────────────────────────────────────────────────
+
 function Nearby({
   navigate,
   openStation,
@@ -693,6 +857,13 @@ function Nearby({
   const live = useStations({ kind, minRating, maxDistance: radius })
   const results = live.data?.items?.length ? live.data.items : fallback
   const chips: KindFilter[] = ["All", "EV Charge", "Fuel", "Repair", "Tyres", "Car Wash", "Parking"]
+  const [selectedId, setSelectedId] = useState<number | undefined>()
+
+  const handleSelectStation = (s: Station) => {
+    setSelectedId(s.id)
+    openStation(s)
+  }
+
   return (
     <>
       <TopBar
@@ -705,34 +876,12 @@ function Nearby({
         }
       />
       <main className="screen nearby-screen">
-        <div className="map-panel">
-          <div className="map-grid" />
-          <div className="map-road road-a" />
-          <div className="map-road road-b" />
-          <div className="map-road road-c" />
-          {results.slice(0, 4).map((station, i) => (
-            <button
-              key={station.id}
-              className={`map-pin pin-${i + 1}`}
-              onClick={() => openStation(station)}
-            >
-              <Icon name={kindIcon[station.kind]} size={17} />
-            </button>
-          ))}
-          <div className="user-pin">
-            <span />
-          </div>
-          <button className="locate-button">
-            <Icon name="locate" />
-          </button>
-          <div className="map-search">
-            <Icon name="search" />
-            <span>Search this area</span>
-            <button onClick={() => navigate("search")}>
-              <Icon name="filter" size={18} />
-            </button>
-          </div>
-        </div>
+        <OsmMapPanel
+          stations={results}
+          onSelectStation={handleSelectStation}
+          selectedId={selectedId}
+          onLocate={() => {}}
+        />
         <div className="nearby-sheet">
           <div className="sheet-handle" />
           <div className="sheet-head">
@@ -760,7 +909,7 @@ function Nearby({
               <Surface key={station.id}>
                 <StationRow
                   station={station}
-                  onClick={() => openStation(station)}
+                  onClick={() => handleSelectStation(station)}
                 />
               </Surface>
             ))}

@@ -12,6 +12,8 @@ export interface Station {
   rating: number
   address: string
   accent: "amber" | "blue" | "green"
+  lat: number
+  lng: number
 }
 
 export const services: Array<{ name: ServiceKind; icon: string; meta: string }> =
@@ -40,6 +42,8 @@ export const stations: Station[] = [
     rating: 4.8,
     address: "100 Feet Road, Indiranagar",
     accent: "amber",
+    lat: 12.9784,
+    lng: 77.6408,
   },
   {
     id: 2,
@@ -53,6 +57,8 @@ export const stations: Station[] = [
     rating: 4.6,
     address: "Old Airport Road, Domlur",
     accent: "blue",
+    lat: 12.9626,
+    lng: 77.6484,
   },
   {
     id: 3,
@@ -66,6 +72,8 @@ export const stations: Station[] = [
     rating: 4.9,
     address: "HAL 2nd Stage, Bengaluru",
     accent: "green",
+    lat: 12.9612,
+    lng: 77.6565,
   },
   {
     id: 4,
@@ -79,6 +87,8 @@ export const stations: Station[] = [
     rating: 4.5,
     address: "MG Road, Bengaluru",
     accent: "amber",
+    lat: 12.9716,
+    lng: 77.6197,
   },
   {
     id: 5,
@@ -92,6 +102,8 @@ export const stations: Station[] = [
     rating: 4.6,
     address: "27th Main, HSR Layout",
     accent: "amber",
+    lat: 12.9116,
+    lng: 77.6473,
   },
   {
     id: 6,
@@ -105,6 +117,8 @@ export const stations: Station[] = [
     rating: 4.3,
     address: "Sarjapur Main Road",
     accent: "blue",
+    lat: 12.9010,
+    lng: 77.6850,
   },
   {
     id: 7,
@@ -118,6 +132,8 @@ export const stations: Station[] = [
     rating: 4.7,
     address: "ITPL Main Road, Whitefield",
     accent: "green",
+    lat: 12.9833,
+    lng: 77.7500,
   },
   {
     id: 8,
@@ -131,6 +147,8 @@ export const stations: Station[] = [
     rating: 4.4,
     address: "Bellary Road, Yelahanka",
     accent: "amber",
+    lat: 13.1007,
+    lng: 77.5963,
   },
   {
     id: 9,
@@ -144,6 +162,8 @@ export const stations: Station[] = [
     rating: 4.5,
     address: "Electronic City Phase 1",
     accent: "blue",
+    lat: 12.8453,
+    lng: 77.6602,
   },
 ]
 
